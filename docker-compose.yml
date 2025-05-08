@@ -1,0 +1,11 @@
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: usuario
+      POSTGRES_PASSWORD: contraseña
+      POSTGRES_DB: encuesta_db
+    volumes:
+      - ./sql:/docker-entrypoint-initdb.d
+    ports:
+      - "5433:5432"
