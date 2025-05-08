@@ -23,7 +23,7 @@ erDiagram
         string dni PK
         string nombre
         string apellido
-        string correo
+        string email
     }
     TELEFONO_PERSONA {
         int id PK
