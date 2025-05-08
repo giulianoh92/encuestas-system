@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS Persona (
+    persona_id SERIAL PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    apellido VARCHAR(100) NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL
+);

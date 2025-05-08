@@ -1,0 +1,4 @@
+CREATE TABLE IF NOT EXISTS Estado (
+    estado_id SERIAL PRIMARY KEY,
+    nombre_estado VARCHAR(50) UNIQUE NOT NULL
+);
