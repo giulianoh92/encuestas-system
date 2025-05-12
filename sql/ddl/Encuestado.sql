@@ -1,11 +1,9 @@
 CREATE TABLE IF NOT EXISTS Encuestado (
-    encuestado_id SERIAL PRIMARY KEY,
-    persona_id INTEGER NOT NULL,
+    id SERIAL PRIMARY KEY,
     nombre VARCHAR(100) NOT NULL,
     apellido VARCHAR(100) NOT NULL,
-    genero VARCHAR(10) NOT NULL,
-    correo_contacto VARCHAR(255),
-    fecha_nacimiento DATE NOT NULL,
-    ocupacion VARCHAR(100) NOT NULL,
-    FOREIGN KEY (persona_id) REFERENCES Persona(persona_id)
+    genero VARCHAR(20) NOT NULL,
+    correo VARCHAR(100) NOT NULL CHECK (POSITION('@' IN correo) > 0),
+    fecha_nacimiento DATE NOT NULL CHECK (DATE_PART('year', AGE(fecha_nacimiento)) BETWEEN 16 AND 99),
+    ocupacion VARCHAR(100) NOT NULL
 );

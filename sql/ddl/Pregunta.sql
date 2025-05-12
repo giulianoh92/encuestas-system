@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS Pregunta (
-    pregunta_id SERIAL PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     encuesta_id INTEGER NOT NULL,
-    texto_pregunta TEXT NOT NULL,
-    ponderacion FLOAT NOT NULL,
-    FOREIGN KEY (encuesta_id) REFERENCES Encuesta(encuesta_id)
+    texto TEXT NOT NULL,
+    ponderacion FLOAT NOT NULL CHECK (ponderacion >= 0 AND ponderacion <= 1),
+    FOREIGN KEY (encuesta_id) REFERENCES Encuesta(id)
 );

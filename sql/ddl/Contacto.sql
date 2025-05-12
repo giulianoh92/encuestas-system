@@ -1,0 +1,3 @@
+CREATE TABLE IF NOT EXISTS Contacto (
+    id SERIAL PRIMARY KEY
+);
