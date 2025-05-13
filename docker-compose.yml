@@ -6,7 +6,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
-      - ./sql:/docker-entrypoint-initdb.d
+      - ./sql/ddl:/docker-entrypoint-initdb.d
+      - ./sql/dml:/docker-entrypoint-initdb.d/dml
     ports:
       - "5433:5432"
     env_file:
