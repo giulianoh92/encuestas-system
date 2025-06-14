@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 import asyncpg
 import os
+import asyncio
 
 app = FastAPI()
 
@@ -12,15 +13,23 @@ DB_PORT = int(os.getenv("POSTGRES_PORT", "5432"))
 
 @app.on_event("startup")
 async def startup():
-    app.state.db_pool = await asyncpg.create_pool(
-        user=DB_USER,
-        password=DB_PASSWORD,
-        database=DB_NAME,
-        host=DB_HOST,
-        port=DB_PORT,
-        min_size=1,
-        max_size=5
-    )
+    max_tries = 15
+    for i in range(max_tries):
+        try:
+            app.state.db_pool = await asyncpg.create_pool(
+                user=DB_USER,
+                password=DB_PASSWORD,
+                database=DB_NAME,
+                host=DB_HOST,
+                port=DB_PORT,
+                min_size=1,
+                max_size=5
+            )
+            break
+        except Exception as e:
+            if i == max_tries - 1:
+                raise e
+            await asyncio.sleep(2)
 
 @app.on_event("shutdown")
 async def shutdown():
