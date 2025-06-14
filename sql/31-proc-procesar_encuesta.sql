@@ -14,6 +14,7 @@ DECLARE
     v_estado_id INTEGER;
     v_minimo INTEGER;
     v_respuestas INTEGER;
+    r record;
 BEGIN
     -- Validar estado y mínimo
     BEGIN
@@ -39,14 +40,14 @@ BEGIN
     FOR resp IN cur_respuestas LOOP
         v_peso_usuario := 0;
 
-        FOR r IN (
+        FOR r IN
             SELECT pr.ponderacion AS ponderacion_pregunta,
                    op.ponderacion AS ponderacion_respuesta
             FROM RespuestaSeleccionada rs
             JOIN OpcionRespuesta op ON op.id = rs.opcion_respuesta_id
             JOIN Pregunta pr ON pr.id = op.pregunta_id
             WHERE rs.encuesta_respondida_id = resp.encuesta_respondida_id
-        ) LOOP
+        LOOP
             v_peso_usuario := v_peso_usuario + (r.ponderacion_pregunta * r.ponderacion_respuesta);
         END LOOP;
 
