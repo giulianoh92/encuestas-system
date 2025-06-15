@@ -1,6 +1,7 @@
 from fastapi import FastAPI, UploadFile, File, Request, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
 import asyncpg
 import os
 import asyncio
@@ -16,6 +17,7 @@ UPLOADS_DIR = "/docker-entrypoint-initdb.d/uploads"
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 DB_USER = os.getenv("POSTGRES_USER", "usuario")
 DB_PASSWORD = os.getenv("POSTGRES_PASSWORD", "contraseña")
