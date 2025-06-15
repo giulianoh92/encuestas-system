@@ -9,18 +9,29 @@ DECLARE
 BEGIN
     FOR v_linea IN SELECT * FROM csv_encuestas_temp LOOP
         BEGIN
-            -- Validar existencia de IDs referenciados
-            BEGIN
-                SELECT 1 INTO v_dummy FROM Encuesta WHERE id = v_linea.id_encuesta;
-                SELECT 1 INTO v_dummy FROM Pregunta WHERE id = v_linea.id_pregunta;
-                SELECT 1 INTO v_dummy FROM OpcionRespuesta WHERE id = v_linea.id_respuesta;
-                SELECT 1 INTO v_dummy FROM Encuestado WHERE id = v_linea.id_encuestado;
-            EXCEPTION
-                WHEN NO_DATA_FOUND THEN
-                    RAISE EXCEPTION 'ID referenciado no encontrado.';
-            END;
+              -- Validaciones de existencia
+              PERFORM 1 FROM Encuesta WHERE id = v_linea.id_encuesta AND estado_id = 2;
+              IF NOT FOUND THEN
+                 RAISE EXCEPTION 'Encuesta no encontrada o no está abierta';
+              END IF;
 
-            -- Insertar en EncuestaRespondida (si no existe)
+            PERFORM 1 FROM Pregunta WHERE id = v_linea.id_pregunta AND encuesta_id = v_linea.id_encuesta;
+            IF NOT FOUND THEN
+                RAISE EXCEPTION 'Pregunta no encontrada o no pertenece a la encuesta';
+            END IF;
+
+            PERFORM 1 FROM OpcionRespuesta 
+            WHERE id = v_linea.id_respuesta AND pregunta_id = v_linea.id_pregunta;
+            IF NOT FOUND THEN
+                RAISE EXCEPTION 'Opción no encontrada o no corresponde a la pregunta';
+            END IF;
+
+            PERFORM 1 FROM Encuestado WHERE id = v_linea.id_encuestado;
+            IF NOT FOUND THEN
+                RAISE EXCEPTION 'Encuestado no encontrado';
+            END IF;
+
+            -- Insertar en EncuestaRespondida si no existe
             BEGIN
                 INSERT INTO EncuestaRespondida (
                     id, encuesta_id, encuestado_id, fecha_hora_respuesta
@@ -29,36 +40,37 @@ BEGIN
                     v_linea.id_respondida,
                     v_linea.id_encuesta,
                     v_linea.id_encuestado,
-                    TO_TIMESTAMP(v_linea.fecha_respuesta, 'YYYY-MM-DD HH24:MI:SS')
+                    v_linea.fecha_respuesta
                 );
-            EXCEPTION
-                WHEN unique_violation THEN
-                    -- Ya existe
-                    NULL;
+            EXCEPTION WHEN unique_violation THEN
+                -- Ya existe, continuar
+                NULL;
             END;
 
-            -- Insertar respuesta seleccionada
+            -- Insertar en RespuestaSeleccionada
             INSERT INTO RespuestaSeleccionada (
                 encuesta_respondida_id,
-                opcion_respuesta_id
+                opcion_respuesta_id,
+                pregunta_id
             )
             VALUES (
                 v_linea.id_respondida,
-                v_linea.id_respuesta
+                v_linea.id_respuesta,
+                v_linea.id_pregunta
             );
 
             v_procesadas := v_procesadas + 1;
 
         EXCEPTION
             WHEN OTHERS THEN
-                -- Simulación de rollback parcial
                 INSERT INTO csv_errores_log (
                     linea_csv,
                     error_descripcion
                 ) VALUES (
-                    'EncuestaID: ' || v_linea.id_encuesta || 
-                    ', PreguntaID: ' || v_linea.id_pregunta || 
-                    ', RespuestaID: ' || v_linea.id_respuesta,
+                    'EncuestaID: ' || v_linea.id_encuesta ||
+                    ', PreguntaID: ' || v_linea.id_pregunta ||
+                    ', RespuestaID: ' || v_linea.id_respuesta ||
+                    ', EncuestadoID: ' || v_linea.id_encuestado,
                     SQLERRM
                 );
                 v_errores := v_errores + 1;

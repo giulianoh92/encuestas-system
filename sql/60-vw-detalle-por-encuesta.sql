@@ -21,9 +21,3 @@ JOIN Encuestado ec ON er.encuestado_id = ec.id
 JOIN RespuestaSeleccionada rs ON rs.encuesta_respondida_id = er.id
 JOIN Pregunta p ON rs.pregunta_id = p.id
 JOIN OpcionRespuesta orp ON rs.opcion_respuesta_id = orp.id AND rs.pregunta_id = orp.pregunta_id;
-
-
-
-SELECT * FROM vw_detalle_por_encuesta;
-
-DROP VIEW IF EXISTS vw_detalle_por_encuesta;

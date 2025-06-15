@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Subir CSV de Encuestas</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #f4f6f8; margin: 0; padding: 0; }
+        .container { max-width: 520px; margin: 40px auto; background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 32px 28px 24px 28px; }
+        h1 { color: #2d3748; font-size: 1.7rem; margin-bottom: 18px; text-align: center; }
+        form { display: flex; flex-direction: column; gap: 18px; }
+        input[type="file"] { padding: 8px; border-radius: 6px; border: 1px solid #cbd5e1; background: #f9fafb; }
+        button { background: #2563eb; color: #fff; border: none; border-radius: 6px; padding: 12px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+        button:hover { background: #1e40af; }
+        .info { background: #e0e7ef; border-left: 4px solid #2563eb; padding: 16px 18px; margin-bottom: 18px; border-radius: 6px; font-size: 0.98rem; }
+        .csv-example { background: #f3f4f6; font-family: 'Fira Mono', 'Consolas', monospace; font-size: 0.97rem; padding: 10px 14px; border-radius: 6px; margin: 10px 0 0 0; color: #374151; }
+        .error { color: #b91c1c; background: #fee2e2; border: 1px solid #fca5a5; padding: 10px 14px; border-radius: 6px; margin-bottom: 10px; display: none; }
+        @media (max-width: 600px) { .container { padding: 18px 6px; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Subir archivo CSV de Respuestas</h1>
+        <div class="info">
+            <strong>Formato requerido del archivo CSV:</strong>
+            <ul>
+                <li>La <b>primera línea</b> debe contener solo la fecha de generación del archivo (no se procesa).</li>
+                <li>Desde la <b>segunda línea</b> hasta la penúltima, cada línea debe tener los siguientes campos, separados por <b>comas</b>:
+                    <ul>
+                        <li><b>Id Encuesta</b>: 6 caracteres numéricos (rellenar con ceros a la izquierda si es necesario)</li>
+                        <li><b>Id Pregunta</b>: 8 caracteres numéricos</li>
+                        <li><b>Id Respuesta</b>: 12 caracteres numéricos</li>
+                        <li><b>Fec. Realizó</b>: 8 caracteres (YYYYMMDD)</li>
+                        <li><b>Id Encuestador</b>: 4 caracteres numéricos</li>
+                        <li><b>Id Respondida</b>: 12 caracteres numéricos</li>
+                    </ul>
+                </li>
+                <li>La <b>última línea</b> debe comenzar con <code>FIN</code> seguido de la cantidad de líneas de detalle (10 caracteres en total).</li>
+            </ul>
+            <div class="csv-example">
+                20240615<br>
+                000010,00000015,000000000125,20240615,0002,000000000001<br>
+                000011,00000016,000000000126,20240615,0002,000000000002<br>
+                FIN0000000002
+            </div>
+        </div>
+        <div id="errorMsg" class="error"></div>
+        <form id="csvForm" enctype="multipart/form-data" method="post">
+            <input type="file" name="file" id="csvFile" accept=".csv" required>
+            <button type="submit">Procesar</button>
+        </form>
+    </div>
+    <script>
+        const form = document.getElementById('csvForm');
+        const fileInput = document.getElementById('csvFile');
+        const errorMsg = document.getElementById('errorMsg');
+
+        function showError(msg) {
+            errorMsg.textContent = msg;
+            errorMsg.style.display = 'block';
+        }
+        function hideError() {
+            errorMsg.style.display = 'none';
+        }
+
+        form.addEventListener('submit', function(e) {
+            hideError();
+            const file = fileInput.files[0];
+            if (!file) {
+                showError('Debe seleccionar un archivo CSV.');
+                e.preventDefault();
+                return;
+            }
+            if (!file.name.endsWith('.csv')) {
+                showError('El archivo debe tener extensión .csv');
+                e.preventDefault();
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                let lines = evt.target.result.split(/\r?\n/).filter(l => l.trim().length > 0);
+
+                // Si la primera línea no es fecha, quitar los primeros 8 caracteres
+                if (!/^\d{8}$/.test(lines[0].trim())) {
+                    lines[0] = lines[0].slice(8).trim();
+                }
+
+                // Buscar línea FIN
+                const finIndex = lines.findIndex(l => /^FIN\d{10}$/.test(l.trim()));
+                if (finIndex === -1) {
+                    showError('No se encontró la línea FIN.');
+                    e.preventDefault();
+                    return;
+                }
+
+                // Tomar solo las líneas de detalle
+                const detailLines = lines.slice(1, finIndex);
+
+                // Validaciones como antes...
+                if (detailLines.length !== parseInt(lines[finIndex].trim().slice(3), 10)) {
+                    showError(`La cantidad de líneas de detalle (${detailLines.length}) no coincide con el valor informado (${lines[finIndex].trim().slice(3)}).`);
+                    e.preventDefault();
+                    return;
+                }
+                for (let i = 0; i < detailLines.length; i++) {
+                    const l = detailLines[i].trim();
+                    const parts = l.split(',');
+                    if (parts.length !== 6) {
+                        showError(`Línea ${i+2} debe tener 6 campos separados por comas.`);
+                        e.preventDefault();
+                        return;
+                    }
+                    if (!/^\d+$/.test(parts[0]) ||
+                        !/^\d+$/.test(parts[1]) ||
+                        !/^\d+$/.test(parts[2]) ||
+                        !/^\d{8}$/.test(parts[3]) ||
+                        !/^\d+$/.test(parts[4]) ||
+                        !/^\d+$/.test(parts[5])) {
+                        showError(`Línea ${i+2} no cumple el formato esperado (ver ejemplo).`);
+                        e.preventDefault();
+                        return;
+                    }
+                }
+                // Enviar solo las líneas de detalle
+                const blob = new Blob([detailLines.join('\n')], { type: 'text/csv' });
+                const formData = new FormData();
+                formData.append('file', blob, file.name);
+
+                fetch('/cargar_csv/', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(async response => {
+                    if (response.ok) {
+                        alert('CSV cargado y procesado correctamente');
+                        window.location.reload();
+                    } else {
+                        const data = await response.json();
+                        showError(data.detail || 'Error al procesar el archivo');
+                    }
+                })
+                .catch(() => {
+                    showError('Error de red al enviar el archivo');
+                });
+                e.preventDefault();
+            };
+            reader.onerror = function() {
+                showError('No se pudo leer el archivo.');
+                e.preventDefault();
+            };
+            reader.readAsText(file);
+            e.preventDefault(); // Prevenir submit normal
+        });
+    </script>
+</body>
+</html>
+
+
+    

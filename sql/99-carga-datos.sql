@@ -35,7 +35,7 @@ VALUES (
   CURRENT_DATE + 15, 
   CURRENT_DATE + 20, 
   1,
-  1,
+  2, -- Estado "Abierta"
   1
 );
 
@@ -67,22 +67,3 @@ VALUES
 ('Ana', 'López', 'Femenino', 'ana.lopez@example.com', '1995-04-20', 'Diseñadora'),  -- ID = 1
 ('Carlos', 'Gómez', 'Masculino', 'carlos.gomez@example.com', '1988-11-15', 'Ingeniero'), -- ID = 2
 ('María', 'Fernández', 'Femenino', 'maria.fernandez@example.com', '1992-07-30', 'Abogada'); -- ID = 3
-
--- Encuestas Respondidas
-INSERT INTO EncuestaRespondida (id, encuesta_id, encuestado_id, fecha_hora_respuesta)
-VALUES 
-(1, 1, 1, '2023-10-01 10:00:00'),
-(2, 1, 2, '2023-10-01 11:00:00'),
-(3, 1, 3, '2023-10-01 12:00:00');
-
--- Respuestas Seleccionadas (ahora incluyendo pregunta_id)
-INSERT INTO RespuestaSeleccionada (encuesta_respondida_id, opcion_respuesta_id, pregunta_id)
-VALUES 
-(1, 1, 1), -- Ana elige "Excelente" para la Pregunta 1
-(1, 5, 2), -- Ana elige "Sí, sin dudas" para la Pregunta 2
-
-(2, 2, 1), -- Carlos elige "Bueno" para la Pregunta 1
-(2, 6, 2), -- Carlos elige "Probablemente sí" para la Pregunta 2
-
-(3, 3, 1), -- María elige "Regular" para la Pregunta 1
-(3, 7, 2); -- María elige "No lo sé" para la Pregunta 2
