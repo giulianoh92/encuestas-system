@@ -1,69 +1,115 @@
-INSERT INTO Estado (nombre) VALUES 
-('En carga'),
-('Abierta'),
-('Cerrada'),
-('Procesada'); 
+/****************************************************************************************
+* 1. ESTADOS (se fuerza el id para que “Abierta” sea = 2, tal como espera el código)
+****************************************************************************************/
+INSERT INTO Estado (id, nombre) VALUES
+    (1, 'En carga'),
+    (2, 'Abierta'),
+    (3, 'Cerrada'),
+    (4, 'Procesada')
+ON CONFLICT (id) DO NOTHING;
 
--- Contactos
-INSERT INTO Contacto DEFAULT VALUES; -- ID 1
-INSERT INTO Contacto DEFAULT VALUES; -- ID 2
+/****************************************************************************************
+* 2. CONTACTOS, PERSONA ENCUESTADOR (dni/solicitante = 9999)
+****************************************************************************************/
+-- Contacto para el solicitante-persona
+INSERT INTO Contacto (id) VALUES (1)                      ON CONFLICT DO NOTHING;
 
--- Persona asociada a contacto_id 1
+-- Persona que actuará como ENCUESTADOR (dni = 9999)
 INSERT INTO Persona (dni, contacto_id, nombre, apellido, email)
-VALUES ('12345678', 1, 'Juan', 'Pérez', 'juan@example.com');
+VALUES ('9999', 1, 'Supervisor', 'General', 'encuestador@demo.com')
+ON CONFLICT (dni) DO NOTHING;
 
--- Empresa asociada a contacto_id 2
-INSERT INTO Empresa (cuit, contacto_id, razon_social, correo_contacto)
-VALUES ('30-12345678-9', 2, 'ACME S.A.', 'contacto@acme.com');
+/****************************************************************************************
+* 3. SOLICITANTE = 9999  (el CSV utiliza “9999” como id_encuestador)
+*    El trigger asigna automáticamente tipo = 'Persona'.
+****************************************************************************************/
+INSERT INTO Solicitante (id, contacto_id)
+VALUES (9999, 1)
+ON CONFLICT (id) DO NOTHING;
 
--- Teléfonos
-INSERT INTO Telefono (contacto_id, numero)
-VALUES (1, '+541112345678'),
-       (2, '+541198765432'),
-       (1, '+541112345679');
+/****************************************************************************************
+* 4. ENCUESTA id = 15 — debe estar “Abierta” (estado_id = 2) y vinculada al solicitante 9999
+*    Cumplimos los triggers de fecha: fecha_desde ≥ 14 y ≤ 45 días; hasta ≤ +10 días.
+****************************************************************************************/
+INSERT INTO Encuesta (id, denominacion, fecha_desde, fecha_hasta,
+                      minimo_respuestas, estado_id, solicitante_id)
+VALUES (15,
+        'Encuesta de Demostración',
+        DATE '2025-07-10',            -- 21 días después de 2025-06-19
+        DATE '2025-07-15',            -- dentro de los 10 días siguientes
+        1,
+        2,                            -- “Abierta”
+        9999)
+ON CONFLICT (id) DO NOTHING;
 
--- Solicitante tipo Persona
-INSERT INTO Solicitante (contacto_id) VALUES (1);
+/****************************************************************************************
+* 5. PREGUNTAS id = 325, 327, 328, 330  (4 preguntas ⇒ < 7, cumple trigger)
+*    Se asigna ponderación 0.25 cada una (total 1.00).
+****************************************************************************************/
+INSERT INTO Pregunta (id, encuesta_id, texto, ponderacion) VALUES
+    (325, 15, 'Pregunta P-325', 0.25),
+    (327, 15, 'Pregunta P-327', 0.25),
+    (328, 15, 'Pregunta P-328', 0.25),
+    (330, 15, 'Pregunta P-330', 0.25)
+ON CONFLICT (id) DO NOTHING;
 
--- Solicitante tipo Empresa
-INSERT INTO Solicitante (contacto_id) VALUES (2);
+/****************************************************************************************
+* 6. OPCIONES DE RESPUESTA (12 en total) — exactamente las que aparecen en el CSV
+*    Por regla de negocio, para cada pregunta hay **una** opción con ponderación 1.
+****************************************************************************************/
+-- Pregunta 325
+INSERT INTO OpcionRespuesta (id, pregunta_id, texto, ponderacion) VALUES
+    (1500, 325, 'P325 – Opción A (ponderación 1)',   1   ),
+    (1501, 325, 'P325 – Opción B',                   0.5 ),
+    (1503, 325, 'P325 – Opción C',                   0.25)
+ON CONFLICT (id) DO NOTHING;
 
--- Encuesta
-INSERT INTO Encuesta (denominacion, fecha_desde, fecha_hasta, minimo_respuestas, estado_id, solicitante_id)
-VALUES (
-  'Satisfacción del Cliente', 
-  CURRENT_DATE + 15, 
-  CURRENT_DATE + 20, 
-  1,
-  2, -- Estado "Abierta"
-  1
-);
+-- Pregunta 327
+INSERT INTO OpcionRespuesta (id, pregunta_id, texto, ponderacion) VALUES
+    (1505, 327, 'P327 – Opción A',                   0.25),
+    (1506, 327, 'P327 – Opción B (ponderación 1)',   1   ),
+    (1510, 327, 'P327 – Opción C',                   0.5 )
+ON CONFLICT (id) DO NOTHING;
 
--- Preguntas
-INSERT INTO Pregunta (encuesta_id, texto, ponderacion)
-VALUES 
-(1, '¿Cómo calificaría nuestro servicio?', 0.5), -- ID = 1
-(1, '¿Recomendaría nuestra empresa?', 0.5);      -- ID = 2
+-- Pregunta 328
+INSERT INTO OpcionRespuesta (id, pregunta_id, texto, ponderacion) VALUES
+    (1511, 328, 'P328 – Opción A',                   0.5 ),
+    (1513, 328, 'P328 – Opción B',                   0.25),
+    (1518, 328, 'P328 – Opción C (ponderación 1)',   1   )
+ON CONFLICT (id) DO NOTHING;
 
--- Opciones para Pregunta 1 (ID=1)
-INSERT INTO OpcionRespuesta (pregunta_id, texto, ponderacion)
-VALUES 
-(1, 'Excelente', 1),          -- ID = 1
-(1, 'Bueno', 0.75),           -- ID = 2
-(1, 'Regular', 0.5),          -- ID = 3
-(1, 'Malo', 0.25);            -- ID = 4
+-- Pregunta 330
+INSERT INTO OpcionRespuesta (id, pregunta_id, texto, ponderacion) VALUES
+    (1519, 330, 'P330 – Opción A',                   0.25),
+    (1520, 330, 'P330 – Opción B',                   0.5 ),
+    (1521, 330, 'P330 – Opción C (ponderación 1)',   1   )
+ON CONFLICT (id) DO NOTHING;
 
--- Opciones para Pregunta 2 (ID=2)
-INSERT INTO OpcionRespuesta (pregunta_id, texto, ponderacion)
-VALUES 
-(2, 'Sí, sin dudas', 1),         -- ID = 5
-(2, 'Probablemente sí', 0.75),   -- ID = 6
-(2, 'No lo sé', 0.5),            -- ID = 7
-(2, 'Probablemente no', 0.25);   -- ID = 8
+/****************************************************************************************
+* 7. ENCUESTADOS — los 10 IDs que aparecen como último segmento en el CSV
+****************************************************************************************/
+INSERT INTO Encuestado (id, nombre, apellido, genero, correo, fecha_nacimiento, ocupacion) VALUES
+    (   5, 'Eva',     'Demo',  'Femenino',  'eva5@demo.com',  '1998-05-01', 'Analista' ),
+    (  78, 'Luis',    'Demo',  'Masculino', 'luis78@demo.com','1994-09-15', 'Diseñador'),
+    (  85, 'Rosa',    'Demo',  'Femenino',  'rosa85@demo.com','2000-03-10', 'Estudiante'),
+    (  91, 'Tomas',   'Demo',  'Masculino', 'tomas91@demo.com','1990-12-20','Ingeniero'),
+    (  95, 'Ariel',   'Demo',  'Masculino', 'ariel95@demo.com','1992-07-07','Docente' ),
+    (  98, 'Julia',   'Demo',  'Femenino',  'julia98@demo.com','1996-11-03','Abogada' ),
+    ( 105, 'Max',     'Demo',  'Masculino', 'max105@demo.com','1987-02-28','Contador' ),
+    ( 111, 'Lara',    'Demo',  'Femenino',  'lara111@demo.com','1993-06-12','Arquitecta'),
+    ( 155, 'Diego',   'Demo',  'Masculino', 'diego155@demo.com','1989-10-18','Marketing'),
+    ( 185, 'Carla',   'Demo',  'Femenino',  'carla185@demo.com','1991-01-25','Finanzas' )
+ON CONFLICT (id) DO NOTHING;
 
--- Encuestados
-INSERT INTO Encuestado (nombre, apellido, genero, correo, fecha_nacimiento, ocupacion)
-VALUES 
-('Ana', 'López', 'Femenino', 'ana.lopez@example.com', '1995-04-20', 'Diseñadora'),  -- ID = 1
-('Carlos', 'Gómez', 'Masculino', 'carlos.gomez@example.com', '1988-11-15', 'Ingeniero'), -- ID = 2
-('María', 'Fernández', 'Femenino', 'maria.fernandez@example.com', '1992-07-30', 'Abogada'); -- ID = 3
+/****************************************************************************************
+* 8. AJUSTE DE SECUENCIAS (para que los próximos INSERT usen valores siguientes)
+****************************************************************************************/
+SELECT setval(pg_get_serial_sequence('Contacto','id'),   (SELECT max(id) FROM Contacto));
+SELECT setval(pg_get_serial_sequence('Solicitante','id'),(SELECT max(id) FROM Solicitante));
+SELECT setval(pg_get_serial_sequence('Encuesta','id'),   (SELECT max(id) FROM Encuesta));
+SELECT setval(pg_get_serial_sequence('Pregunta','id'),   (SELECT max(id) FROM Pregunta));
+SELECT setval(pg_get_serial_sequence('OpcionRespuesta','id'),(SELECT max(id) FROM OpcionRespuesta));
+SELECT setval(pg_get_serial_sequence('Encuestado','id'), (SELECT max(id) FROM Encuestado));
+/****************************************************************************************
+* LISTO: con estos datos el archivo CSV aportado se cargará sin violar FKs ni triggers.
+****************************************************************************************/

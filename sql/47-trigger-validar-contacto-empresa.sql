@@ -8,8 +8,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS trigger_validar_contacto_empresa ON Empresa;
-
 CREATE TRIGGER trigger_validar_contacto_empresa
 BEFORE INSERT OR UPDATE ON Empresa
 FOR EACH ROW EXECUTE FUNCTION validar_contacto_empresa();

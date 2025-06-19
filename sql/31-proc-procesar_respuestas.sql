@@ -79,8 +79,5 @@ BEGIN
     UPDATE Encuesta
     SET estado_id = 4
     WHERE id = encuesta_id_in;
-
-    -- Confirmar cambios en la base de datos
-    COMMIT;
 END;
 $$;

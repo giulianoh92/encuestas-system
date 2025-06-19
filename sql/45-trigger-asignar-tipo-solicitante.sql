@@ -13,8 +13,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Trigger
-DROP TRIGGER IF EXISTS trigger_asignar_tipo_solicitante ON Solicitante;
 
 CREATE TRIGGER trigger_asignar_tipo_solicitante
 BEFORE INSERT OR UPDATE ON Solicitante
