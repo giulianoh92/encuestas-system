@@ -1,12 +1,13 @@
 CREATE TABLE IF NOT EXISTS csv_respuestas (
-    id                       SERIAL PRIMARY KEY,
-    encuesta_id              INTEGER      NOT NULL,
-    pregunta_id              INTEGER      NOT NULL,
-    opcion_respuesta_id      INTEGER      NOT NULL,
-    fecha_respuesta          DATE         NOT NULL,
-    encuestador_id           INTEGER      NOT NULL,
-    encuestado_id            INTEGER      NOT NULL,
-    linea_original           TEXT         NOT NULL,
+    id                     SERIAL PRIMARY KEY,
+    encuesta_id            INT,
+    pregunta_id            INT,
+    opcion_respuesta_id    INT,
+    fecha_respuesta        DATE,
+    encuestador_id         INT,
+    encuestado_id          INT,
+    ext_encuesta_resp_id   BIGINT,      -- NUEVO: identificador externo de grupo
+    linea_original         TEXT NOT NULL,
     fecha_carga              TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(encuestado_id, pregunta_id, opcion_respuesta_id, encuesta_id)
 );

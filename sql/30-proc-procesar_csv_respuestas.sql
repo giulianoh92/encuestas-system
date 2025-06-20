@@ -80,11 +80,13 @@ BEGIN
             /* 1) Obtener/insertar EncuestaRespondida y capturar su id
                    (la combinación encuesta_id + encuestado_id es única)    */
             INSERT INTO EncuestaRespondida (
+                id,
                 encuesta_id,
                 encuestado_id,
                 fecha_hora_respuesta
             )
             VALUES (
+                v_linea.ext_encuesta_resp_id,  -- id externo
                 v_linea.encuesta_id,
                 v_linea.encuestado_id,
                 v_linea.fecha_respuesta
