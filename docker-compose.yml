@@ -8,13 +8,22 @@ services:
     volumes:
       - ./sql:/docker-entrypoint-initdb.d
       - ./uploads:/uploads
-
     ports:
       - "5433:5432"
-    env_file:
-      - .env
+    env_file: .env
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 10
+
+  web:
+    build: .
+    volumes:
+      - ./uploads:/uploads          # comparte los CSV
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
