@@ -1,7 +1,7 @@
 import os
 import shutil
 from pathlib import Path
-from datetime import date
+from datetime import date, datetime
 
 from fastapi import FastAPI, UploadFile, File, Request, HTTPException, Form, Depends, status
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -328,6 +328,62 @@ def get_all_surveys():
         if conn:
             conn.close()
             
+def get_survey_by_id(survey_id: int):
+    """Get survey details by ID."""
+    conn = None
+    try:
+        conn = psycopg.connect(**DB_OPTS)
+        with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+            cur.execute("""
+                SELECT e.id, e.denominacion, e.estado_id, es.nombre as estado_nombre
+                FROM Encuesta e
+                JOIN Estado es ON e.estado_id = es.id
+                WHERE e.id = %s
+            """, (survey_id,))
+            result = cur.fetchone()
+        conn.commit()
+        return result
+    except psycopg.Error as e:
+        if conn:
+            conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn:
+            conn.close()
+
+def get_survey_responses(survey_id: int):
+    """Get all processed responses for a survey."""
+    conn = None
+    try:
+        conn = psycopg.connect(**DB_OPTS)
+        with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+            cur.execute("""
+                WITH ResponseWeights AS (
+                    SELECT 
+                        er.id,
+                        SUM(p.ponderacion * op.ponderacion) as ponderacion
+                    FROM EncuestaRespondida er
+                    JOIN RespuestaSeleccionada rs ON er.id = rs.encuesta_respondida_id
+                    JOIN Pregunta p ON rs.pregunta_id = p.id
+                    JOIN OpcionRespuesta op ON rs.opcion_respuesta_id = op.id
+                    WHERE er.encuesta_id = %s
+                    GROUP BY er.id
+                )
+                SELECT id, ROUND(ponderacion::numeric, 3) as ponderacion
+                FROM ResponseWeights
+                ORDER BY id
+            """, (survey_id,))
+            result = cur.fetchall()
+        conn.commit()
+        return result
+    except psycopg.Error as e:
+        if conn:
+            conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn:
+            conn.close()
+            
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -373,12 +429,44 @@ async def process_csv(request: Request):
 
 @app.post("/process-survey", response_class=HTMLResponse)
 async def process_survey_endpoint(request: Request, survey_id: int = Form(...)):
-    """Endpoint para procesar una encuesta específica."""
     try:
-        result_msg = process_survey(survey_id)
-        return RedirectResponse(url=f"/surveys?message={result_msg}", status_code=303)
-    except HTTPException as e:
-        return RedirectResponse(url=f"/surveys?message=Error: {e.detail}", status_code=303)
+        # Get survey info
+        survey = get_survey_by_id(survey_id)
+        
+        # Process survey
+        result = process_survey(survey_id)
+        
+        # Get processed survey responses
+        survey_responses = get_survey_responses(survey_id)
+        
+        # Calculate stats
+        if survey_responses:
+            ponderaciones = [resp["ponderacion"] for resp in survey_responses]
+            average_score = round(sum(ponderaciones) / len(ponderaciones), 3)
+            max_score = round(max(ponderaciones), 3)
+            min_score = round(min(ponderaciones), 3)
+        else:
+            average_score = 0
+            max_score = 0
+            min_score = 0
+        
+        # Return results template
+        return templates.TemplateResponse("survey_results.html", {
+            "request": request,
+            "survey": survey,
+            "survey_responses": survey_responses,
+            "average_score": average_score,
+            "max_score": max_score,
+            "min_score": min_score,
+            "processing_date": datetime.now().strftime("%d/%m/%Y %H:%M:%S")  # Remove extra datetime
+        })
+        
+    except Exception as e:
+        return templates.TemplateResponse("upload.html", {
+            "request": request, 
+            "message": f"Error al procesar encuesta: {str(e)}",
+            "surveys": get_all_surveys()
+        })
 
 @app.get("/surveys", response_class=HTMLResponse)
 def surveys_list(request: Request, user: dict = Depends(get_current_user), message: str = None):

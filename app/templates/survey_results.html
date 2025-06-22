@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Resultados de Encuesta</title>
+  <link rel="stylesheet" href="/static/css/styles.css">
+  <style>
+    .results-container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .survey-header {
+      background-color: #f5f5f5;
+      padding: 15px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+      border-left: 4px solid #2196F3;
+    }
+    .results-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 25px;
+    }
+    .results-table th, .results-table td {
+      padding: 12px 15px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+    .results-table th {
+      background-color: #f2f2f2;
+      font-weight: 600;
+    }
+    .results-table tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+    .results-table tr:hover {
+      background-color: #f1f1f1;
+    }
+    .summary-box {
+      background-color: #e3f2fd;
+      padding: 15px;
+      border-radius: 5px;
+      border-left: 4px solid #1976D2;
+      margin-top: 20px;
+    }
+    .ponderacion-value {
+      font-weight: bold;
+    }
+    .back-link {
+      display: inline-block;
+      margin-top: 20px;
+      color: #2196F3;
+      text-decoration: none;
+    }
+    .back-link:hover {
+      text-decoration: underline;
+    }
+    .pagination {
+      display: flex;
+      justify-content: center;
+      margin-top: 20px;
+    }
+    .pagination button {
+      background-color: #f1f1f1;
+      border: none;
+      color: black;
+      padding: 8px 16px;
+      margin: 0 4px;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+    .pagination button.active {
+      background-color: #2196F3;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <div class="results-container">
+    <h1>Resultados de Encuesta</h1>
+    
+    <div class="survey-header">
+      <h2>{{ survey.denominacion }}</h2>
+      <p>Estado: <span class="state-{{ survey.estado_id }}">{{ survey.estado_nombre }}</span></p>
+      <p>Fecha de procesamiento: {{ processing_date }}</p>
+    </div>
+    
+    <h3>Respuestas Individuales</h3>
+    
+    <!-- Filtros y búsqueda -->
+    <div class="filters">
+      <input type="text" id="searchInput" placeholder="Buscar por ID..." onkeyup="filterResults()">
+      <select id="sortOrder" onchange="sortResults()">
+        <option value="id_asc">Ordenar por ID (Asc)</option>
+        <option value="id_desc">Ordenar por ID (Desc)</option>
+        <option value="ponderacion_asc">Ordenar por Ponderación (Asc)</option>
+        <option value="ponderacion_desc">Ordenar por Ponderación (Desc)</option>
+      </select>
+    </div>
+    
+    <table class="results-table" id="resultsTable">
+      <thead>
+        <tr>
+          <th>ID Respuesta</th>
+          <th>Ponderación</th>
+          <th>Comparación</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for response in survey_responses %}
+        <tr>
+          <td>{{ response.id }}</td>
+          <td class="ponderacion-value">{{ response.ponderacion }}</td>
+          <td>
+            <div class="progress-bar" 
+                 style="width: {{ response.ponderacion * 100 }}%; 
+                        background-color: {% if response.ponderacion < 0.4 %}#f44336{% elif response.ponderacion < 0.7 %}#ff9800{% else %}#4CAF50{% endif %};">
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    
+    <!-- Paginación -->
+    <div class="pagination" id="pagination"></div>
+    
+    <div class="summary-box">
+      <h3>Resumen</h3>
+      <p>Total de respuestas: <strong>{{ survey_responses|length }}</strong></p>
+      <p>Ponderación promedio: <strong>{{ average_score }}</strong></p>
+      <p>Ponderación más alta: <strong>{{ max_score }}</strong></p>
+      <p>Ponderación más baja: <strong>{{ min_score }}</strong></p>
+    </div>
+    
+    <a href="/surveys" class="back-link">← Volver a la lista de encuestas</a>
+  </div>
+
+  <script>
+    // Variables para paginación
+    let currentPage = 1;
+    const rowsPerPage = 10;
+    const table = document.getElementById('resultsTable');
+    const rows = table.getElementsByTagName('tbody')[0].rows;
+    
+    // Inicializar paginación
+    function setupPagination() {
+      const pageCount = Math.ceil(rows.length / rowsPerPage);
+      const pagination = document.getElementById('pagination');
+      pagination.innerHTML = '';
+      
+      for (let i = 1; i <= pageCount; i++) {
+        const button = document.createElement('button');
+        button.innerText = i;
+        if (i === currentPage) {
+          button.classList.add('active');
+        }
+        button.addEventListener('click', function() {
+          currentPage = i;
+          showPage(i);
+          
+          // Actualizar botones activos
+          const buttons = pagination.getElementsByTagName('button');
+          for (let j = 0; j < buttons.length; j++) {
+            buttons[j].classList.remove('active');
+          }
+          this.classList.add('active');
+        });
+        pagination.appendChild(button);
+      }
+    }
+    
+    // Mostrar página específica
+    function showPage(page) {
+      const startIndex = (page - 1) * rowsPerPage;
+      const endIndex = startIndex + rowsPerPage;
+      
+      for (let i = 0; i < rows.length; i++) {
+        rows[i].style.display = (i >= startIndex && i < endIndex) ? '' : 'none';
+      }
+    }
+    
+    // Filtrar resultados
+    function filterResults() {
+      const input = document.getElementById('searchInput');
+      const filter = input.value.toUpperCase();
+      
+      for (let i = 0; i < rows.length; i++) {
+        const idCell = rows[i].getElementsByTagName('td')[0];
+        if (idCell) {
+          const txtValue = idCell.textContent || idCell.innerText;
+          rows[i].style.display = txtValue.toUpperCase().indexOf(filter) > -1 ? '' : 'none';
+        }
+      }
+      
+      // Resetear paginación después de filtrar
+      currentPage = 1;
+      setupPagination();
+      showPage(currentPage);
+    }
+    
+    // Ordenar resultados
+    function sortResults() {
+      const select = document.getElementById('sortOrder');
+      const value = select.value;
+      const tbody = table.getElementsByTagName('tbody')[0];
+      const rowsArray = Array.from(rows);
+      
+      rowsArray.sort((a, b) => {
+        const aValue = a.getElementsByTagName('td')[0].innerText;
+        const bValue = b.getElementsByTagName('td')[0].innerText;
+        const aPonderacion = parseFloat(a.getElementsByTagName('td')[1].innerText);
+        const bPonderacion = parseFloat(b.getElementsByTagName('td')[1].innerText);
+        
+        switch (value) {
+          case 'id_asc':
+            return aValue - bValue;
+          case 'id_desc':
+            return bValue - aValue;
+          case 'ponderacion_asc':
+            return aPonderacion - bPonderacion;
+          case 'ponderacion_desc':
+            return bPonderacion - aPonderacion;
+          default:
+            return 0;
+        }
+      });
+      
+      // Reordenar en el DOM
+      rowsArray.forEach(row => {
+        tbody.appendChild(row);
+      });
+      
+      // Refrescar paginación
+      setupPagination();
+      showPage(currentPage);
+    }
+    
+    // Inicializar al cargar la página
+    document.addEventListener('DOMContentLoaded', function() {
+      setupPagination();
+      showPage(currentPage);
+    });
+  </script>
+</body>
+</html>
