@@ -1,5 +1,5 @@
 /****************************************************************************************
-* 1. ESTADOS  ── se fuerza “Abierta” = 2
+* 1. ESTADOS
 ****************************************************************************************/
 INSERT INTO Estado (id, nombre) VALUES
     (1, 'En carga'),
@@ -36,7 +36,7 @@ VALUES (110,
         CURRENT_DATE + 15,
         CURRENT_DATE + 25,
         1,
-        1,          -- Abierta
+        1,          -- En carga
         9999)
 ON CONFLICT (id) DO NOTHING;
 
@@ -92,6 +92,10 @@ INSERT INTO OpcionRespuesta (id, pregunta_id, texto, ponderacion) VALUES
     (27, 5, 'POCA VARIEDAD',         0.3),
     (28, 5, 'INSUFICIENTE',          0.1)
 ON CONFLICT (id) DO NOTHING;
+
+UPDATE Encuesta
+SET estado_id = 2 -- Abierta
+WHERE id = 110; 
 
 /****************************************************************************************
 * 6. 500 ENCUESTADOS  (id 100-599) — datos dummy; solo se necesita la PK

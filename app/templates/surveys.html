@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Encuestas Disponibles</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+    .survey-list { margin-top: 20px; }
+    .survey-item { border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; }
+    .survey-title { font-size: 18px; font-weight: bold; }
+    .survey-dates { color: #666; margin: 5px 0; }
+    .take-survey-btn { padding: 8px 12px; background-color: #4CAF50; color: white; border: none; cursor: pointer; }
+    .user-info { margin-bottom: 20px; padding: 10px; border: 1px solid #ddd; background-color: #f9f9f9; }
+    .logout-btn { background-color: #f44336; color: white; border: none; padding: 5px 10px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="user-info">
+    <p>Bienvenido/a, <strong>{{ encuestado.nombre }} {{ encuestado.apellido }}</strong></p>
+    <form action="/logout" method="post" style="display: inline;">
+      <button type="submit" class="logout-btn">Cerrar Sesión</button>
+    </form>
+  </div>
+
+  <h1>Encuestas Disponibles</h1>
+  
+  {% if message %}
+    <div style="border:1px solid #ccc;padding:8px;margin-bottom:1rem;">
+      {{ message }}
+    </div>
+  {% endif %}
+
+  <div class="survey-list">
+    {% if surveys %}
+      {% for survey in surveys %}
+        <div class="survey-item">
+          <div class="survey-title">{{ survey.denominacion }}</div>
+          <div class="survey-dates">Disponible desde {{ survey.fecha_desde.strftime('%d/%m/%Y') }} hasta {{ survey.fecha_hasta.strftime('%d/%m/%Y') }}</div>
+          <a href="/survey/{{ survey.id }}"><button class="take-survey-btn">Realizar encuesta</button></a>
+        </div>
+      {% endfor %}
+    {% else %}
+      <p>No hay encuestas disponibles en este momento.</p>
+    {% endif %}
+  </div>
+</body>
+</html>

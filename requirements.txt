@@ -4,3 +4,4 @@ psycopg[binary]
 python-dotenv
 jinja2
 python-multipart
+itsdangerous

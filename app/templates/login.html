@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Iniciar Sesión - Sistema de Encuestas</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+    .form-group { margin-bottom: 15px; }
+    input { padding: 8px; width: 100%; }
+    button { padding: 10px 15px; background-color: #4CAF50; color: white; border: none; cursor: pointer; }
+    .message { padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; }
+    .tabs { display: flex; margin-bottom: 20px; }
+    .tab { padding: 10px 15px; cursor: pointer; border: 1px solid #ccc; background-color: #f1f1f1; }
+    .tab.active { background-color: white; border-bottom: none; }
+  </style>
+</head>
+<body>
+  <div class="tabs">
+    <a href="/login" class="tab active">Iniciar Sesión</a>
+    <a href="/register" class="tab">Registrarse</a>
+  </div>
+
+  <h1>Iniciar Sesión</h1>
+
+  {% if message %}
+    <div class="message">{{ message }}</div>
+  {% endif %}
+
+  <form action="/login" method="post">
+    <div class="form-group">
+      <label for="id">ID de Encuestado:</label>
+      <input type="number" id="id" name="id" required>
+    </div>
+    <div class="form-group">
+      <label for="nombre">Nombre:</label>
+      <input type="text" id="nombre" name="nombre" required>
+    </div>
+    <button type="submit">Iniciar Sesión</button>
+  </form>
+</body>
+</html>
