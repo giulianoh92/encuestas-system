@@ -257,6 +257,78 @@ def get_all_genders():
     finally:
         if conn:
             conn.close()
+            
+def process_csv_responses():
+    """Procesa las respuestas CSV cargadas llamando al procedimiento almacenado."""
+    notices = []
+
+    def notice_receiver(notice):
+        notices.append(str(notice.message_primary))
+
+    conn = None
+    try:
+        conn = psycopg.connect(**DB_OPTS)
+        conn.add_notice_handler(notice_receiver)
+        with conn.cursor() as cur:
+            cur.execute("CALL procesar_csv_respuestas();")
+        conn.commit()
+        if notices:
+            return " | ".join(notices)
+        return "CSV procesado correctamente."
+    except psycopg.Error as e:
+        if conn:
+            conn.rollback()
+        raise HTTPException(status_code=400, detail=str(e).splitlines()[-1])
+    finally:
+        if conn:
+            conn.close()
+
+def process_survey(survey_id: int):
+    """Procesa una encuesta específica."""
+    notices = []
+
+    def notice_receiver(notice):
+        notices.append(str(notice.message_primary))
+
+    conn = None
+    try:
+        conn = psycopg.connect(**DB_OPTS)
+        conn.add_notice_handler(notice_receiver)
+        with conn.cursor() as cur:
+            cur.execute("CALL procesar_encuesta(%s);", (survey_id,))
+        conn.commit()
+        if notices:
+            return " | ".join(notices)
+        return f"Encuesta {survey_id} procesada correctamente."
+    except psycopg.Error as e:
+        if conn:
+            conn.rollback()
+        raise HTTPException(status_code=400, detail=str(e).splitlines()[-1])
+    finally:
+        if conn:
+            conn.close()
+
+def get_all_surveys():
+    """Obtiene todas las encuestas para selección."""
+    conn = None
+    try:
+        conn = psycopg.connect(**DB_OPTS)
+        with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+            cur.execute(
+                "SELECT id, denominacion, estado_id FROM Encuesta"
+            )
+            result = cur.fetchall()
+        conn.commit()
+        return result
+    except psycopg.Error as e:
+        if conn:
+            conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn:
+            conn.close()
+            
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Middleware para verificar sesión
@@ -280,9 +352,54 @@ def root():
     return RedirectResponse(url="/login", status_code=303)
 
 @app.get("/upload-form", response_class=HTMLResponse)
-def upload_form(request: Request, msg: str = None):
+def upload_form(request: Request, msg: str = None, process_result: str = None):
     """Formulario para subir un archivo CSV."""
-    return templates.TemplateResponse("upload.html", {"request": request, "message": msg})
+    surveys = get_all_surveys()  # Obtener encuestas para el selector
+    return templates.TemplateResponse("upload.html", {
+        "request": request,
+        "message": msg,
+        "process_result": process_result,
+        "surveys": surveys
+    })
+
+@app.post("/process-csv", response_class=HTMLResponse)
+async def process_csv(request: Request):
+    """Procesa el CSV cargado previamente."""
+    try:
+        result_msg = process_csv_responses()
+        return RedirectResponse(url=f"/upload-form?process_result={result_msg}", status_code=303)
+    except HTTPException as e:
+        return RedirectResponse(url=f"/upload-form?process_result=Error: {e.detail}", status_code=303)
+
+@app.post("/process-survey", response_class=HTMLResponse)
+async def process_survey_endpoint(request: Request, survey_id: int = Form(...)):
+    """Endpoint para procesar una encuesta específica."""
+    try:
+        result_msg = process_survey(survey_id)
+        return RedirectResponse(url=f"/surveys?message={result_msg}", status_code=303)
+    except HTTPException as e:
+        return RedirectResponse(url=f"/surveys?message=Error: {e.detail}", status_code=303)
+
+@app.get("/surveys", response_class=HTMLResponse)
+def surveys_list(request: Request, user: dict = Depends(get_current_user), message: str = None):
+    """Lista las encuestas disponibles."""
+    surveys = get_open_surveys()
+    all_surveys = get_all_surveys()  # Para el selector de procesamiento
+    
+    # Verificar cuáles encuestas ya fueron respondidas por el usuario
+    for survey in surveys:
+        survey["ya_respondida"] = has_responded_to_survey(user["id"], survey["id"])
+    
+    return templates.TemplateResponse(
+        "surveys.html", 
+        {
+            "request": request, 
+            "surveys": surveys, 
+            "all_surveys": all_surveys,
+            "encuestado": user,
+            "message": message
+        }
+    )
 
 @app.post("/upload", response_class=HTMLResponse)
 async def upload(request: Request, file: UploadFile = File(...)):

@@ -4,26 +4,104 @@
   <meta charset="utf-8">
   <title>Subir CSV de respuestas</title>
   <link rel="stylesheet" href="/static/css/styles.css">
+  <style>
+    .section {
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid #ddd;
+    }
+    .process-btn {
+      margin-top: 10px;
+      background-color: #2196F3;
+    }
+    .survey-btn {
+      background-color: #ff9800;
+    }
+    .result-box {
+      padding: 15px;
+      margin-top: 15px;
+      background-color: #f5f5f5;
+      border-radius: 4px;
+      white-space: pre-wrap;
+    }
+    .state-label {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 0.85em;
+      margin-left: 10px;
+    }
+    .state-1 { background-color: #e0e0e0; } /* Borrador */
+    .state-2 { background-color: #81c784; } /* Abierta */
+    .state-3 { background-color: #ffb74d; } /* Cerrada */
+    .state-4 { background-color: #64b5f6; } /* Procesada */
+    .note {
+      font-size: 0.9em;
+      color: #666;
+      margin-top: 5px;
+    }
+  </style>
 </head>
 <body>
   <div class="container">
-    <h1>Subir CSV de respuestas</h1>
+    <h1>Gestión de Respuestas CSV</h1>
 
-    {% if message %}
-      <div class="message {% if 'Error' in message %}error-message{% else %}success-message{% endif %}">
-        {{ message }}
-      </div>
-    {% endif %}
+    <!-- Sección de carga de CSV -->
+    <section class="section">
+      <h2>Subir CSV de respuestas</h2>
+      
+      {% if message %}
+        <div class="message {% if 'Error' in message %}error-message{% else %}success-message{% endif %}">
+          {{ message }}
+        </div>
+      {% endif %}
 
-    <form action="/upload" method="post" enctype="multipart/form-data">
-      <div class="form-group">
-        <label for="file">Seleccione archivo CSV:</label>
-        <input type="file" id="file" name="file" accept=".csv" required>
-      </div>
-      <button type="submit">Cargar</button>
-    </form>
+      {% if process_result %}
+        <div class="result-box {% if 'Error' in process_result %}error-message{% else %}success-message{% endif %}">
+          {{ process_result }}
+        </div>
+      {% endif %}
 
-    <h2>Formato esperado</h2>
+      <form action="/upload" method="post" enctype="multipart/form-data">
+        <div class="form-group">
+          <label for="file">Seleccione archivo CSV:</label>
+          <input type="file" id="file" name="file" accept=".csv" required>
+        </div>
+        <button type="submit">Cargar</button>
+      </form>
+    </section>
+
+    <!-- Sección para procesar el CSV -->
+    <section class="section">
+      <h2>Procesar CSV cargado</h2>
+      <p>Una vez que haya cargado el archivo CSV, utilice este botón para procesarlo:</p>
+      <form action="/process-csv" method="post">
+        <button type="submit" class="process-btn">Procesar CSV</button>
+      </form>
+    </section>
+
+    <!-- Sección para procesar una encuesta específica -->
+    <section class="section">
+      <h2>Procesar encuesta específica</h2>
+      <p>Seleccione una encuesta para procesar sus resultados:</p>
+      <form action="/process-survey" method="post">
+        <div class="form-group">
+          <label for="survey_id">Seleccionar encuesta:</label>
+          <select id="survey_id" name="survey_id" required onchange="updateSurveyState()">
+            {% for survey in surveys %}
+              <option value="{{ survey.id }}" data-estado="{{ survey.estado_id }}">
+                {{ survey.denominacion }}
+              </option>
+            {% endfor %}
+          </select>
+          <div id="survey-state" class="state-label" style="margin-top: 10px;"></div>
+        </div>
+        <p class="note">Nota: Para procesar una encuesta, debe estar cerrada.</p>
+        <button type="submit" id="process-btn" class="survey-btn" disabled>Procesar Encuesta</button>
+      </form>
+    </section>
+
+    <h2 class="section">Formato esperado</h2>
     <pre style="background-color: #f5f5f5; padding: 15px; border-radius: 4px; overflow-x: auto;">
 1) Encabezado (fecha envío, responsable)
 2) Registros de respuestas:
@@ -36,8 +114,47 @@
     </pre>
     
     <div class="footer">
+      <a href="/surveys">Ver encuestas</a> |
       <a href="/login">Volver a Inicio de Sesión</a>
     </div>
   </div>
+
+  <script>
+  function updateSurveyState() {
+    const select = document.getElementById('survey_id');
+    const selectedOption = select.options[select.selectedIndex];
+    const estado = selectedOption.getAttribute('data-estado');
+    const stateDiv = document.getElementById('survey-state');
+    const processBtn = document.getElementById('process-btn');
+    
+    // Clear previous classes
+    stateDiv.className = 'state-label';
+    
+    // Add state-specific class and text
+    if (estado == '1') {
+      stateDiv.textContent = 'Estado: Borrador';
+      stateDiv.classList.add('state-1');
+      processBtn.disabled = true;
+    } else if (estado == '2') {
+      stateDiv.textContent = 'Estado: Abierta';
+      stateDiv.classList.add('state-2');
+      processBtn.disabled = true;
+    } else if (estado == '3') {
+      stateDiv.textContent = 'Estado: Cerrada';
+      stateDiv.classList.add('state-3');
+      processBtn.disabled = false; // Enable only for closed surveys
+    } else if (estado == '4') {
+      stateDiv.textContent = 'Estado: Procesada';
+      stateDiv.classList.add('state-4');
+      processBtn.disabled = true;
+    } else {
+      stateDiv.textContent = 'Estado: ' + estado;
+      processBtn.disabled = true;
+    }
+  }
+
+  // Initialize state display when page loads
+  document.addEventListener('DOMContentLoaded', updateSurveyState);
+</script>
 </body>
 </html>

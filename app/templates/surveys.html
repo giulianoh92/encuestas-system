@@ -4,6 +4,49 @@
   <meta charset="utf-8">
   <title>Encuestas Disponibles</title>
   <link rel="stylesheet" href="/static/css/styles.css">
+  <style>
+    .admin-section {
+      margin-top: 30px;
+      padding: 20px;
+      background-color: #f9f9f9;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .admin-section h2 {
+      margin-top: 0;
+      color: #2c3e50;
+    }
+    .process-btn {
+      background-color: #ff9800;
+      margin-top: 10px;
+    }
+    .message {
+      padding: 10px;
+      margin-bottom: 15px;
+      border-radius: 4px;
+    }
+    .message.error-message {
+      border: 1px solid #f44336;
+      color: #b71c1c;
+      background-color: #ffebee;
+    }
+    .message.success-message {
+      border: 1px solid #4CAF50;
+      color: #1b5e20;
+      background-color: #e8f5e9;
+    }
+    .state-label {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 0.85em;
+      margin-left: 10px;
+    }
+    .state-1 { background-color: #e0e0e0; } /* Borrador */
+    .state-2 { background-color: #81c784; } /* Abierta */
+    .state-3 { background-color: #ffb74d; } /* Cerrada */
+    .state-4 { background-color: #64b5f6; } /* Procesada */
+  </style>
 </head>
 <body>
   <div class="container">
@@ -17,7 +60,9 @@
     <h1>Encuestas Disponibles</h1>
     
     {% if message %}
-      <div class="message">{{ message }}</div>
+      <div class="message {% if 'Error' in message %}error-message{% else %}success-message{% endif %}">
+        {{ message }}
+      </div>
     {% endif %}
 
     <div class="survey-list">
@@ -40,9 +85,70 @@
       {% endif %}
     </div>
     
+    <!-- Nueva sección de administración para procesar encuestas -->
+    <div class="admin-section">
+      <h2>Procesamiento de Encuestas</h2>
+      <p>Seleccione una encuesta para procesar sus resultados:</p>
+      
+      <form action="/process-survey" method="post">
+        <div class="form-group">
+          <label for="survey_id">Seleccionar encuesta:</label>
+          <select id="survey_id" name="survey_id" required onchange="updateSurveyState()">
+            {% for survey in all_surveys %}
+              <option value="{{ survey.id }}" data-estado="{{ survey.estado_id }}">
+                {{ survey.denominacion }}
+              </option>
+            {% endfor %}
+          </select>
+          <div id="survey-state" class="state-label" style="margin-top: 10px;"></div>
+        </div>
+        <p class="note">Nota: Para procesar una encuesta, debe estar cerrada.</p>
+        <button type="submit" id="process-btn" class="process-btn" disabled>Procesar Encuesta</button>
+      </form>
+    </div>
+    
     <div class="footer">
       <a href="/upload-form">Carga de respuestas CSV</a>
     </div>
   </div>
+
+  <script>
+  function updateSurveyState() {
+    const select = document.getElementById('survey_id');
+    const selectedOption = select.options[select.selectedIndex];
+    const estado = selectedOption.getAttribute('data-estado');
+    const stateDiv = document.getElementById('survey-state');
+    const processBtn = document.getElementById('process-btn');
+    
+    // Clear previous classes
+    stateDiv.className = 'state-label';
+    
+    // Add state-specific class and text
+    if (estado == '1') {
+      stateDiv.textContent = 'Estado: Borrador';
+      stateDiv.classList.add('state-1');
+      processBtn.disabled = true;
+    } else if (estado == '2') {
+      stateDiv.textContent = 'Estado: Abierta';
+      stateDiv.classList.add('state-2');
+      processBtn.disabled = true;
+    } else if (estado == '3') {
+      stateDiv.textContent = 'Estado: Cerrada';
+      stateDiv.classList.add('state-3');
+      processBtn.disabled = false; // Enable only for closed surveys
+    } else if (estado == '4') {
+      stateDiv.textContent = 'Estado: Procesada';
+      stateDiv.classList.add('state-4');
+      processBtn.disabled = true;
+    } else {
+      stateDiv.textContent = 'Estado: ' + estado;
+      processBtn.disabled = true;
+    }
+  }
+
+  // Initialize state display when page loads
+  document.addEventListener('DOMContentLoaded', updateSurveyState);
+</script>
+
 </body>
 </html>
