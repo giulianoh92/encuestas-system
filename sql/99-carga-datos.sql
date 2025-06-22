@@ -8,6 +8,12 @@ INSERT INTO Estado (id, nombre) VALUES
     (4, 'Procesada')
 ON CONFLICT (id) DO NOTHING;
 
+INSERT INTO Genero (id, nombre) VALUES
+    (1, 'Masculino'),
+    (2, 'Femenino'),
+    (3, 'Otro')
+ON CONFLICT (id) DO NOTHING;
+
 /****************************************************************************************
 * 2. ENCUESTADOR / SOLICITANTE 9999  (actúa como responsable de la carga)
 ****************************************************************************************/
@@ -106,14 +112,17 @@ DECLARE
 BEGIN
     FOR v_id IN 100..599 LOOP
         INSERT INTO Encuestado (
-            id, nombre, apellido, genero, correo,
+            id, nombre, apellido, genero_id, correo,
             fecha_nacimiento, ocupacion)
         VALUES (
             v_id,
             'Nombre_'   || v_id,
             'Apellido_' || v_id,
-            CASE WHEN v_id % 2 = 0 THEN 'Masculino' ELSE 'Femenino' END,
-            'user' || v_id || '@demo.com',
+            CASE 
+                WHEN v_id % 100 < 45 THEN 1      -- 45%
+                WHEN v_id % 100 < 90 THEN 2      -- 45%
+                ELSE 3                           -- 10%
+            END,           'user' || v_id || '@demo.com',
             '1990-01-01',                       -- fecha ficticia
             'Demo'
         )

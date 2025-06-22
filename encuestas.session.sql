@@ -14,3 +14,5 @@ SELECT * FROM csv_respuestas;
 SELECT * FROM Encuestado;
 
 SELECT * FROM EncuestaRespondida;
+
+SELECT * FROM Encuestado WHERE id = 600;

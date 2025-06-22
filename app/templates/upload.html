@@ -3,23 +3,28 @@
 <head>
   <meta charset="utf-8">
   <title>Subir CSV de respuestas</title>
+  <link rel="stylesheet" href="/static/css/styles.css">
 </head>
 <body>
-  <h1>Subir CSV de respuestas</h1>
+  <div class="container">
+    <h1>Subir CSV de respuestas</h1>
 
-  {% if message %}
-    <div style="border:1px solid #ccc;padding:8px;margin-bottom:1rem;">
-      {{ message }}
-    </div>
-  {% endif %}
+    {% if message %}
+      <div class="message {% if 'Error' in message %}error-message{% else %}success-message{% endif %}">
+        {{ message }}
+      </div>
+    {% endif %}
 
-  <form action="/upload" method="post" enctype="multipart/form-data">
-    <input type="file" name="file" accept=".csv" required>
-    <button type="submit">Cargar</button>
-  </form>
+    <form action="/upload" method="post" enctype="multipart/form-data">
+      <div class="form-group">
+        <label for="file">Seleccione archivo CSV:</label>
+        <input type="file" id="file" name="file" accept=".csv" required>
+      </div>
+      <button type="submit">Cargar</button>
+    </form>
 
-  <h2>Formato esperado</h2>
-  <pre>
+    <h2>Formato esperado</h2>
+    <pre style="background-color: #f5f5f5; padding: 15px; border-radius: 4px; overflow-x: auto;">
 1) Encabezado (fecha envío, responsable)
 2) Registros de respuestas:
    - Id Encuesta (6)  | Id Pregunta (8) | Id Respuesta (12)
@@ -28,6 +33,11 @@
    - Id Encuesta Respondida (12)
    - Id Usuario respondente (7)
 3) Footer: "FIN" | Cantidad (5) | Firma (10)
-  </pre>
+    </pre>
+    
+    <div class="footer">
+      <a href="/login">Volver a Inicio de Sesión</a>
+    </div>
+  </div>
 </body>
 </html>

@@ -7,7 +7,7 @@ SELECT
     enc.id AS encuestado_id,
     enc.nombre AS encuestado_nombre,
     enc.apellido AS encuestado_apellido,
-    enc.genero AS encuestado_genero,
+    g.nombre AS encuestado_genero,  -- Join with Genero table for descriptive value
     enc.correo AS encuestado_correo,
     enc.fecha_nacimiento AS encuestado_fecha_nacimiento,
     enc.ocupacion AS encuestado_ocupacion,
@@ -20,6 +20,7 @@ FROM
     EncuestaRespondida er
     JOIN Encuesta e ON er.encuesta_id = e.id
     JOIN Encuestado enc ON er.encuestado_id = enc.id
+    JOIN Genero g ON enc.genero_id = g.id  -- Add this join to get gender description
     JOIN Pregunta p ON p.encuesta_id = e.id
     JOIN OpcionRespuesta o ON o.pregunta_id = p.id
     LEFT JOIN RespuestaSeleccionada rs

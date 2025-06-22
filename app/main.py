@@ -6,6 +6,7 @@ from datetime import date
 from fastapi import FastAPI, UploadFile, File, Request, HTTPException, Form, Depends, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from dotenv import load_dotenv
 import psycopg
@@ -33,6 +34,8 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 app = FastAPI(title="CSV Survey Uploader")
 app.add_middleware(SessionMiddleware, secret_key="your-secret-key")
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Helpers
@@ -69,7 +72,12 @@ def get_encuestado_by_id(id: int, nombre: str):
         conn = psycopg.connect(**DB_OPTS)
         with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
             cur.execute(
-                "SELECT * FROM Encuestado WHERE id = %s AND nombre = %s", 
+                """
+                SELECT e.*, g.nombre as genero_nombre 
+                FROM Encuestado e
+                JOIN Genero g ON e.genero_id = g.id
+                WHERE e.id = %s AND e.nombre = %s
+                """, 
                 (id, nombre)
             )
             result = cur.fetchone()
@@ -184,7 +192,7 @@ def submit_survey_responses(encuestado_id: int, encuesta_id: int, responses: Dic
         if conn:
             conn.close()
 
-def create_encuestado(nombre: str, apellido: str, genero: str, correo: str, fecha_nacimiento: date, ocupacion: str):
+def create_encuestado(nombre: str, apellido: str, genero_id: int, correo: str, fecha_nacimiento: date, ocupacion: str):
     """Crea un nuevo encuestado en la base de datos."""
     conn = None
     try:
@@ -192,10 +200,10 @@ def create_encuestado(nombre: str, apellido: str, genero: str, correo: str, fech
         with conn.cursor() as cur:
             cur.execute(
                 """
-                INSERT INTO Encuestado (nombre, apellido, genero, correo, fecha_nacimiento, ocupacion) 
+                INSERT INTO Encuestado (nombre, apellido, genero_id, correo, fecha_nacimiento, ocupacion) 
                 VALUES (%s, %s, %s, %s, %s, %s) RETURNING id
                 """,
-                (nombre, apellido, genero, correo, fecha_nacimiento, ocupacion)
+                (nombre, apellido, genero_id, correo, fecha_nacimiento, ocupacion)
             )
             new_id = cur.fetchone()[0]
         
@@ -206,6 +214,45 @@ def create_encuestado(nombre: str, apellido: str, genero: str, correo: str, fech
             conn.rollback()
         if "correo" in str(e) and "already exists" in str(e):
             raise HTTPException(status_code=400, detail="El correo electrónico ya está registrado")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn:
+            conn.close()
+            
+def has_responded_to_survey(encuestado_id: int, encuesta_id: int) -> bool:
+    """Verifica si un encuestado ya respondió una encuesta específica."""
+    conn = None
+    try:
+        conn = psycopg.connect(**DB_OPTS)
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id FROM EncuestaRespondida WHERE encuesta_id = %s AND encuestado_id = %s",
+                (encuesta_id, encuestado_id)
+            )
+            result = cur.fetchone()
+        conn.commit()
+        return result is not None
+    except psycopg.Error as e:
+        if conn:
+            conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn:
+            conn.close()
+            
+def get_all_genders():
+    """Obtiene todos los géneros disponibles."""
+    conn = None
+    try:
+        conn = psycopg.connect(**DB_OPTS)
+        with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+            cur.execute("SELECT * FROM Genero")
+            result = cur.fetchall()
+        conn.commit()
+        return result
+    except psycopg.Error as e:
+        if conn:
+            conn.rollback()
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         if conn:
@@ -228,10 +275,14 @@ def get_current_user(request: Request):
 # Rutas
 # ──────────────────────────────────────────────────────────────────────────────
 @app.get("/", response_class=HTMLResponse)
-def form(request: Request, msg: str | None = None):
-    """Formulario de carga."""
-    return templates.TemplateResponse("upload.html",
-                                      {"request": request, "message": msg})
+def root():
+    """Redirecciona a la página de login."""
+    return RedirectResponse(url="/login", status_code=303)
+
+@app.get("/upload-form", response_class=HTMLResponse)
+def upload_form(request: Request, msg: str = None):
+    """Formulario para subir un archivo CSV."""
+    return templates.TemplateResponse("upload.html", {"request": request, "message": msg})
 
 @app.post("/upload", response_class=HTMLResponse)
 async def upload(request: Request, file: UploadFile = File(...)):
@@ -244,8 +295,7 @@ async def upload(request: Request, file: UploadFile = File(...)):
     result_msg = call_stored_procedure(str(target_path))
 
     # 3) Redirigir con mensaje
-    url = str(request.url_for("form")) + f"?msg={result_msg}"
-    return RedirectResponse(url=url, status_code=303)
+    return RedirectResponse(url=f"/upload-form?msg={result_msg}", status_code=303)
 
 @app.get("/status", response_class=HTMLResponse)
 def status(request: Request):
@@ -301,14 +351,19 @@ async def login(request: Request, id: int = Form(...), nombre: str = Form(...)):
 @app.get("/register", response_class=HTMLResponse)
 def register_form(request: Request, message: str = None):
     """Formulario de registro."""
-    return templates.TemplateResponse("register.html", {"request": request, "message": message})
+    generos = get_all_genders()
+    return templates.TemplateResponse("register.html", {
+        "request": request, 
+        "message": message, 
+        "generos": generos
+    })
 
 @app.post("/register")
 async def register(
     request: Request,
     nombre: str = Form(...),
     apellido: str = Form(...),
-    genero: str = Form(...),
+    genero_id: int = Form(...),
     correo: str = Form(...),
     fecha_nacimiento: date = Form(...),
     ocupacion: str = Form(...)
@@ -316,7 +371,7 @@ async def register(
     """Procesa el registro de un nuevo encuestado."""
     try:
         # Crear nuevo encuestado
-        encuestado_id = create_encuestado(nombre, apellido, genero, correo, fecha_nacimiento, ocupacion)
+        encuestado_id = create_encuestado(nombre, apellido, genero_id, correo, fecha_nacimiento, ocupacion)
         
         # Obtener el encuestado completo
         encuestado = get_encuestado_by_id(encuestado_id, nombre)
@@ -332,9 +387,10 @@ async def register(
         # Redirigir a la lista de encuestas
         return RedirectResponse(url="/surveys", status_code=303)
     except HTTPException as e:
+        generos = get_all_genders()
         return templates.TemplateResponse(
             "register.html", 
-            {"request": request, "message": e.detail}
+            {"request": request, "message": e.detail, "generos": generos}
         )
 
 @app.post("/logout")
@@ -347,6 +403,11 @@ async def logout(request: Request):
 def surveys_list(request: Request, user: dict = Depends(get_current_user)):
     """Lista las encuestas disponibles."""
     surveys = get_open_surveys()
+    
+    # Verificar cuáles encuestas ya fueron respondidas por el usuario
+    for survey in surveys:
+        survey["ya_respondida"] = has_responded_to_survey(user["id"], survey["id"])
+    
     return templates.TemplateResponse(
         "surveys.html", 
         {"request": request, "surveys": surveys, "encuestado": user}
@@ -355,6 +416,13 @@ def surveys_list(request: Request, user: dict = Depends(get_current_user)):
 @app.get("/survey/{survey_id}", response_class=HTMLResponse)
 def take_survey(survey_id: int, request: Request, user: dict = Depends(get_current_user)):
     """Muestra una encuesta para ser respondida."""
+    # Verificar si ya respondió esta encuesta
+    if has_responded_to_survey(user["id"], survey_id):
+        return templates.TemplateResponse(
+            "result.html",
+            {"request": request, "message": "Ya has respondido esta encuesta anteriormente"}
+        )
+    
     survey, preguntas, opciones = get_survey_with_questions(survey_id)
     
     return templates.TemplateResponse(

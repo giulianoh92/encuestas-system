@@ -1,8 +1,17 @@
 <!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><title>Resultado</title></head>
+<head>
+  <meta charset="utf-8">
+  <title>Resultado</title>
+  <link rel="stylesheet" href="/static/css/styles.css">
+</head>
 <body>
-  <h2>{{ message }}</h2>
-  <a href="/">Volver</a>
+  <div class="container">
+    <h2>{{ message }}</h2>
+    <div class="footer">
+      <a href="/surveys">Volver a encuestas</a> | 
+      <a href="/upload-form">Carga de respuestas CSV</a>
+    </div>
+  </div>
 </body>
 </html>
